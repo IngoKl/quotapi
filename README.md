@@ -27,4 +27,4 @@ Quotapi is a very simple RESTful (well, almost) quotation API that is based on F
 * Return Failure: 409, 403, 404
 
 ## Quote Verification
-The idea behind quote verification is that api users can verify the correctness of a quotation. Each user (= IP) can verifiy each quote in the form of an integer between -1 and 1.
+The idea behind quote verification is that api users can verify the correctness of a quotation. Each user (= IP) can verifiy each quote in the form of an integer between -1 and 1. Each "1" represents a verification of validity. The total number of verifications is returned together with the quotation in order to evaluate it's quality.
