@@ -6,7 +6,7 @@ import sqlite3
 import json
 import random
 
-# Quotapi v.1.0; 08.06.2016, MIT License (Ingo Kleiber 2016)
+# Quotapi v.1.0; 09.06.2016, MIT License (Ingo Kleiber 2016)
 
 # Disable Console Output
 log = logging.getLogger('werkzeug')
@@ -123,6 +123,7 @@ def get_quote(quote_id):
 def post_verify_quote(quote_id):
     verification = int(request.form['verification'])
     sender_ip = request.remote_addr
+    #sender_ip = request.headers.getlist("X-Forwarded-For")[0]
     log('success', '[POST] [200] [%s] - /quotapi/api/v1.0/quotes/%d' % (request.remote_addr, quote_id))
 
     if quote_id_exists(quote_id):
@@ -138,7 +139,7 @@ def post_verify_quote(quote_id):
                 sql.execute('INSERT INTO verifications (sender_ip, quote_id, verification) VALUES (?, ?, ?)', (
                     sender_ip, quote_id, verification))
                 db_connection.commit()
-                abort(200)
+                return json.dumps({'success':True}), 200, {'ContentType':'application/json'}
             else:
                 log('soft_error', '[VERIFICATION-FAILED] [Ver.: %s] [%s] - /quotapi/api/v1.0/quotes/%d' % (
                     verification, request.remote_addr, quote_id))
