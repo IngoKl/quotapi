@@ -1,5 +1,8 @@
 # Quotapi - A Quotation API
-Quotapi is a very simple RESTful (well, almost) quotation API that is based on Flask and SQLite. Quotapi is the result of an educational investigation of Flask and is not really suited for productive use.
+
+![Quotapi Logo](http://quotapi.kleiber.me/assets/quotapi-logo-100.png)
+
+Quotapi is a very simple RESTful (well, almost) quotation API that is based on Flask and SQLite. Quotapi is the result of an educational investigation into Flask and is not really suited for productive use. Quotapi's purpose is to provide (famous) quotations in JSON.										
 
 ## Documentation (API v.1.0)
 ### Searching
