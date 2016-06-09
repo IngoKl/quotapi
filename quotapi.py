@@ -6,7 +6,7 @@ import sqlite3
 import json
 import random
 
-# Quotapi v.1.0; 09.06.2016, MIT License (Ingo Kleiber 2016)
+# Quotapi v.1.1; 09.06.2016, MIT License (Ingo Kleiber 2016)
 
 # Disable Console Output
 log = logging.getLogger('werkzeug')
@@ -15,8 +15,15 @@ log.setLevel(logging.ERROR)
 # Settings
 logfile = './api-log.txt'
 logging = True
+x_forwarded_for_retrieval = True
+
 db_connection = sqlite3.connect("quotes-clean.db3", check_same_thread=False)
 
+def client_ip():
+	if x_forwarded_for_retrieval:
+		return request.headers.getlist("X-Forwarded-For")[0]
+	else:
+		return request.remote_addr	
 
 def dictionary_factory(cursor, row):
     """
@@ -112,41 +119,40 @@ def get_quote(quote_id):
         sql.execute('SELECT quotes.*, SUM(verifications.verification) AS verification_sum FROM quotes INNER JOIN verifications ON quotes.id=verifications.quote_id WHERE quotes.id=?', (quote_id,))
         quote = sql.fetchone()
 
-        log('success', '[GET] [200] [%s] - /quotapi/api/v1.0/quotes/%d' % (request.remote_addr, quote_id))
+        log('success', '[GET] [200] [%s] - /quotapi/api/v1.0/quotes/%d' % (client_ip(), quote_id))
         return jsonify({'quote': quote})
     else:
-        log('soft_error', '[GET] [404] [%s] - /quotapi/api/v1.0/quotes/%d' % (request.remote_addr, quote_id))
+        log('soft_error', '[GET] [404] [%s] - /quotapi/api/v1.0/quotes/%d' % (client_ip(), quote_id))
         abort(404)
 
 
 @app.route('/quotapi/api/v1.0/quotes/verify/<int:quote_id>', methods=['POST'])
 def post_verify_quote(quote_id):
     verification = int(request.form['verification'])
-    sender_ip = request.remote_addr
-    #sender_ip = request.headers.getlist("X-Forwarded-For")[0]
-    log('success', '[POST] [200] [%s] - /quotapi/api/v1.0/quotes/%d' % (request.remote_addr, quote_id))
+    sender_ip = client_ip()
+    log('success', '[POST] [200] [%s] - /quotapi/api/v1.0/quotes/%d' % (client_ip(), quote_id))
 
     if quote_id_exists(quote_id):
         if has_ip_verified(sender_ip, quote_id):
             log('soft_error', '[VERIFICATION-FAILED-REPEATED-VERIFICATION] [409] [Ver.: %s] [%s] - /quotapi/api/v1.0/quotes/%d' % (
-                verification, request.remote_addr, quote_id))
+                verification, client_ip(), quote_id))
             abort(409)
         else:
             if -1 <= verification <= 1:
-                log('success', '[VERIFICATION] [%s] [%s] - /quotapi/api/v1.0/quotes/%d' % (
-                    verification, request.remote_addr, quote_id))
                 sql = db_connection.cursor()
                 sql.execute('INSERT INTO verifications (sender_ip, quote_id, verification) VALUES (?, ?, ?)', (
                     sender_ip, quote_id, verification))
                 db_connection.commit()
+                log('success', '[VERIFICATION] [%s] [%s] - /quotapi/api/v1.0/quotes/%d' % (
+                    verification, client_ip(), quote_id))
                 return json.dumps({'success':True}), 200, {'ContentType':'application/json'}
             else:
                 log('soft_error', '[VERIFICATION-FAILED] [Ver.: %s] [%s] - /quotapi/api/v1.0/quotes/%d' % (
-                    verification, request.remote_addr, quote_id))
+                    verification, client_ip(), quote_id))
                 abort(403)
     else:
         log('soft_error', '[VERIFICATION-FAILED-UNKNOWN-QUOTE-ID] [404] [Ver.: %s] [%s] - /quotapi/api/v1.0/quotes/%d' % (
-            verification, request.remote_addr, quote_id))
+            verification, client_ip(), quote_id))
         abort(404)
 
 
@@ -160,7 +166,7 @@ def get_random_quote():
     sql.execute('SELECT quotes.*, SUM(verifications.verification) AS verification_sum FROM quotes INNER JOIN verifications ON quotes.id=verifications.quote_id WHERE quotes.id=?', (quote_id,))
     quote = sql.fetchone()
 
-    log('success', '[GET] [200] [%s] - /quotapi/api/v1.0/quotes/random [%d]' % (request.remote_addr, quote_id))
+    log('success', '[GET] [200] [%s] - /quotapi/api/v1.0/quotes/random [%d]' % (client_ip(), quote_id))
     return jsonify({'quote': quote})
 
 
@@ -171,8 +177,14 @@ def post_search_quotes():
     sql = db_connection.cursor()
     sql.execute('SELECT * FROM quotes WHERE quote LIKE ?', ("%" + search_term + "%",))
 
-    log('success', '[GET] [200] [%s] - /quotapi/api/v1.0/quotes/search [%s]' % (request.remote_addr, search_term))
+    log('success', '[GET] [200] [%s] - /quotapi/api/v1.0/quotes/search [%s]' % (client_ip(), search_term))
     return jsonify({'search_results': sql.fetchall()})
+
+@app.route('/quotapi/api/v1.0/status', methods=['GET'])
+def get_api_status():
+    log('success', '[GET] [200] [%s] - /quotapi/api/v1.0/status' % client_ip())
+    client_ip()
+    return json.dumps({'status': {'status': 'ok', 'number_of_quotes': max_quote_id()}}), 200, {'ContentType':'application/json'}   
 
 
 if __name__ == '__main__':
